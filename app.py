@@ -1,8 +1,7 @@
 import streamlit as st
-import tempfile
 
 from langchain_community.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.vectorstores import FAISS
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from transformers import pipeline
@@ -25,19 +24,22 @@ def load_models():
 
 embeddings, llm = load_models()
 
-pdf_path = "sample.pdf"
+@st.cache_resource
+def build_index():
+    loader = PyPDFLoader("sample.pdf")
+    docs = loader.load()
 
-loader = PyPDFLoader(pdf_path)
-docs = loader.load()
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=1000,
+        chunk_overlap=200
+    )
 
-splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1000,
-    chunk_overlap=200
-)
+    chunks = splitter.split_documents(docs)
 
-chunks = splitter.split_documents(docs)
+    vector_db = FAISS.from_documents(chunks, embeddings)
+    return vector_db
 
-vector_db = FAISS.from_documents(chunks, embeddings)
+vector_db = build_index()
 
 query = st.text_input("Ask a question")
 
